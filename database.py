@@ -34,19 +34,11 @@ class Database:
         return self.verification_codes[user]
 
     def update_user_status(self, user, status):
-        user.status = status
+        user_data = self.users.get(user)
+        user_data.status = status
 
     def delete_verification_code(self, user):
         del self.verification_codes[user]
-
-    # def save_user(self, user_data: UserData):
-    #     with self.lock:
-    #
-    #         if user_data.user in self.users:
-    #             return False  # User already exists
-    #         else:
-    #             self.users[username] = password
-    #             return True
 
     def is_password_ok(self, username, password):
         with self.lock:

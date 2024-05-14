@@ -1,6 +1,7 @@
+import random
 class VerificationCodeCreator:
 
     @staticmethod
     def create_code():
-        #TODO create a random 8 digits code
-        return "123456"
+        random_number = random.randint(100000000, 1000000000)
+        return random_number

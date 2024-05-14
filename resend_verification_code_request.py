@@ -2,7 +2,5 @@ from dataclasses import dataclass
 
 
 @dataclass
-class SignUpVerificationRequest:
+class ResendVerificationCodeRequest:
     user: str
-    code: int
-

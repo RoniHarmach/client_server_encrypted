@@ -216,6 +216,21 @@ class SignUpVerificationFrame(tk.Frame):
 
 #                send_verification_email(user_data.user, user_data.email, verification_code)
 #  sock, ProtocolCodes.VERIFY_SIGN_UP_RESPONSE, response
+    def resend_clicked(self, user):
+        response = self.master.user_login_protocol.resend_sign_up_code(user)
+        if not response.result:
+            message = response.error
+            fg = "red"
+        else:
+            message = "Check your email for verification code"
+            fg = "green"
+
+        if self.verification_result_label is not None:
+            self.verification_result_label.config(text=message, fg=fg)
+        else:
+            self.verification_result_label = tk.Label(self, text=message, fg=fg)
+            self.verification_result_label.pack()
+
     def verify_clicked(self, user, verification_code):
         response = self.master.user_login_protocol.verify_sign_up(user, verification_code.get())
         if not response.result:
@@ -227,6 +242,7 @@ class SignUpVerificationFrame(tk.Frame):
             self.login_label.pack()
             self.verify_button.config(state=tk.DISABLED)
             self.verification_code_entry.config(state=tk.DISABLED)
+            self.resend_button.config(state=tk.DISABLED)
 
         if self.verification_result_label is not None:
             self.verification_result_label.config(text=message, fg=fg)
@@ -234,27 +250,13 @@ class SignUpVerificationFrame(tk.Frame):
             self.verification_result_label = tk.Label(self, text=message, fg=fg)
             self.verification_result_label.pack()
 
-        #     if sign_up_response.result:
-        #         message = "Sign Up Succeeded!"
-        #         fg = "green"
-        #     else:
-        #         message = f"Sign Up Failed: {sign_up_response.error}"
-        #         fg = "red"
-        #
-        # if self.sign_up_result_label is not None:
-        #     self.sign_up_result_label.config(text=message, fg=fg)
-        # else:
-        #     self.sign_up_result_label = tk.Label(self, text=message, fg=fg)
-        #     self.sign_up_result_label.pack()
-
-
     def __init__(self, master:LoginApp, user):
         super().__init__(master)
 
         master.title("Verify Sign Up")
         master.geometry("400x300")
 
-        verification_code = tk.StringVar()
+        verification_code = tk.IntVar()
         verification_code_label = tk.Label(self, text="Please verify code sent to your email:")
         verification_code_label.pack(fill='x', expand=True)
 
@@ -262,12 +264,18 @@ class SignUpVerificationFrame(tk.Frame):
         self.verification_code_entry.pack(fill='x', expand=True)
         self.verification_code_entry.focus()
 
-        partial_func = functools.partial(self.verify_clicked, user, verification_code)
-        self.verify_button = tk.Button(self, text="Verify Code", command=partial_func)
+        verify_func = functools.partial(self.verify_clicked, user, verification_code)
+        self.verify_button = tk.Button(self, text="Verify Code", command=verify_func)
         self.verify_button.pack(fill='x', expand=True, pady=10)
+
+        resend_func = functools.partial(self.resend_clicked, user)
+        self.resend_button = tk.Button(self, text="Resend Code", command=resend_func)
+        self.resend_button.pack(fill='x', expand=True, pady=10)
+
 
         self.login_label = tk.Label(self, text="Login", fg="blue", cursor="hand2")
         self.login_label.bind("<Button-1>", lambda event: master.show_frame(LoginFrame))
-
+        # TODO add renew verification code button for expired code. send user to button_click function and send renew verification code request
+        # show success message like 'New verification code was sent to your email"
 
 
