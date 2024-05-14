@@ -9,7 +9,6 @@ from user_login_protocol import UserLoginProtocol
 connected = False
 
 
-
 def handle_server_messages(server_socket):
     global connected
     while connected:
@@ -24,7 +23,6 @@ def handle_server_messages(server_socket):
             break
         if code == ProtocolCodes.GAME_RESULTS:
             connected = False
-
 
 
 # def print_on_screen(self, message):

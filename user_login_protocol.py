@@ -4,7 +4,7 @@ from login_response import LoginResponse
 from protocol import Protocol
 from protocol_codes import ProtocolCodes
 from sign_up_request import SignUpRequest
-from sign_up_response import SignUpResponse
+from sign_up_verification_request import SignUpVerificationRequest
 
 
 class UserLoginProtocol:
@@ -27,6 +27,14 @@ class UserLoginProtocol:
         self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.SIGN_UP_REQUEST, message=message)
         code, message = self.client_server_protocol.read_data(sock=self.sock)
         if code != ProtocolCodes.SIGN_UP_RESPONSE:
+            print("TODO: We need to check why")
+        return message
+
+    def verify_sign_up(self, user, verification_code):
+        message = SignUpVerificationRequest(user=user, code=verification_code)
+        self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.VERIFY_SIGN_UP_REQUEST, message=message)
+        code, message = self.client_server_protocol.read_data(sock=self.sock)
+        if code != ProtocolCodes.VERIFY_SIGN_UP_RESPONSE:
             print("TODO: We need to check why")
         return message
 

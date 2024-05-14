@@ -1,17 +1,21 @@
-import pickle
-import socketserver
 import socket
 import threading
-
+import datetime
 import client_server_constants
+from database import Database
 from forgot_password_response import ForgotPasswordResponse
 from login_response import LoginResponse
 from protocol import Protocol
 from protocol_codes import ProtocolCodes
 from sign_up_response import SignUpResponse
-
+from sign_up_verification_request import SignUpVerificationRequest
+from sign_up_verification_response import SignUpVerificationResponse
+from user_data import UserData, Status
+from verification_code import VerificationCode
+from verification_code_creator import VerificationCodeCreator
 
 all_to_die = False
+database = Database()
 
 
 def open_server_socket():
@@ -22,6 +26,31 @@ def open_server_socket():
     return srv_sock
 
 
+def send_verification_email(user, email, verification_code):
+    print(f"sent verification code '{verification_code} to {user} email {email}")
+
+
+def check_login(user, password):
+    user_data = database.get_user(user)
+    if user_data is not None and user_data.password == password:
+        return True
+    return False
+
+
+def is_valid_verification_code(request: SignUpVerificationRequest):
+    verification = database.get_verification_code(request.user)
+    if verification is None:
+        print(f"missing verification code for user {request.user}")
+        return False, "Invalid Verification Code"
+    if verification.code != request.code:
+        print(f"wrong verification code sent by user {request.user}")
+        return False, "Invalid Verification Code"
+    if verification.expiration_time < datetime.datetime.now():
+        print(f"verification code expired for user {request.user}")
+        return False, "Expired Verification Code"
+
+    return True, None
+
 def handle_client(sock):
     global all_to_die
     finish = False
@@ -31,15 +60,19 @@ def handle_client(sock):
             break
         code, message = Protocol.read_data(sock)
         if code == ProtocolCodes.LOGIN_REQUEST:
-            if message.user == "roni" and message.password == "1":
-
+            if check_login(message.user, message.password):
                 response = LoginResponse(result=True)
             else:
                 response = LoginResponse(result=False, error=("user / password is incorrect"))
-
-            Protocol.send_data(sock, ProtocolCodes.LOGIN_REQUEST, response)
+            Protocol.send_data(sock, ProtocolCodes.LOGIN_RESPONSE, response)
         elif code == ProtocolCodes.SIGN_UP_REQUEST:
-            if message.user == "roni":
+            user_data = UserData(user=message.user, password=message.password, email=message.email, status=Status.WAITING_FOR_VERIFY)
+            if database.create_user(user_data):
+                verification_code = VerificationCodeCreator.create_code()
+                current_datetime = datetime.datetime.now()
+                expiration_time = current_datetime + datetime.timedelta(minutes=1)
+                database.save_verification_code(message.user, VerificationCode(code=verification_code, expiration_time=expiration_time))
+                send_verification_email(user_data.user, user_data.email, verification_code)
                 response = SignUpResponse(result=True)
             else:
                 response = SignUpResponse(result=False, error="User name already taken..")
@@ -50,6 +83,19 @@ def handle_client(sock):
             else:
                 response = ForgotPasswordResponse(result=False, error="User name already taken..")
             Protocol.send_data(sock, ProtocolCodes.FORGOT_PASSWORD_RESPONSE, response)
+        elif code == ProtocolCodes.VERIFY_SIGN_UP_REQUEST:
+            is_valid, error = is_valid_verification_code(message)
+            if not is_valid:
+                response = SignUpVerificationResponse(result=False, error=error)
+            else:
+                response = SignUpVerificationResponse(result=True)
+            Protocol.send_data(sock, ProtocolCodes.VERIFY_SIGN_UP_RESPONSE, response)
+
+            # TODO - verify the code and handle failures
+            # if pass validation:
+            # 1. call database to update user status to verified
+            # 2. call database to delete verification code
+            # return response message
 
     sock.close()
     print("handle_client cloded")
