@@ -3,6 +3,7 @@ from login_request import LoginRequest
 from protocol import Protocol
 from protocol_codes import ProtocolCodes
 from resend_verification_code_request import ResendVerificationCodeRequest
+from reset_password_request import ResetPasswordRequest
 from sign_up_request import SignUpRequest
 from sign_up_verification_request import SignUpVerificationRequest
 
@@ -47,7 +48,7 @@ class UserLoginProtocol:
         return message
 
     def forgot_password(self, email):
-        message = ForgotPasswordRequest(user=email)
+        message = ForgotPasswordRequest(email=email)
         self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.FORGOT_PASSWORD_REQUEST, message=message)
         code, message = self.client_server_protocol.read_data(sock=self.sock)
         if code != ProtocolCodes.FORGOT_PASSWORD_RESPONSE:
@@ -55,4 +56,9 @@ class UserLoginProtocol:
         return message
 
     def reset_password(self, email, password, reset_code):
-        pass
+        message = ResetPasswordRequest(email=email, password=password, reset_code=reset_code)
+        self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.RESET_PASSWORD_REQUEST, message=message)
+        code, message = self.client_server_protocol.read_data(sock=self.sock)
+        if code != ProtocolCodes.RESET_PASSWORD_RESPONSE:
+            print("TODO: We need to check why")
+        return message

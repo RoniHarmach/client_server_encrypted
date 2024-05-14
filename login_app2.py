@@ -57,7 +57,7 @@ class LoginFrame(tk.Frame):
     def __init__(self, master:LoginApp):
         super().__init__(master)
         master.title("Login")
-        master.geometry("400x300")
+        master.geometry("500x400")
 
         email = tk.StringVar()
         password = tk.StringVar()
@@ -88,6 +88,13 @@ class LoginFrame(tk.Frame):
         label2.pack()
         label2.bind("<Button-1>", lambda event: master.show_frame(ForgotPassword))
 
+        label3 = tk.Label(self, text="Reset Password", fg="blue", cursor="hand2")
+        label3.pack()
+        label3.bind("<Button-1>", lambda event: master.show_frame(ResetPassword))
+
+        label4 = tk.Label(self, text="Verify Sign Up", fg="blue", cursor="hand2")
+        label4.pack()
+        label4.bind("<Button-1>", lambda event: master.show_frame(SignUpVerificationFrame, email.get()))
 
 class SignUpFrame(tk.Frame):
     sign_up_result_label = None
@@ -114,7 +121,7 @@ class SignUpFrame(tk.Frame):
         super().__init__(master)
 
         master.title("Sign Up")
-        master.geometry("400x300")
+        master.geometry("500x400")
 
         email = tk.StringVar()
         password = tk.StringVar()
@@ -153,17 +160,90 @@ class SignUpFrame(tk.Frame):
         label2.bind("<Button-1>", lambda event: master.show_frame(ForgotPassword))
 
 
+class ResetPassword(tk.Frame):
+    reset_result_label = None
+
+    def reset_password_clicked(self, email, password, reenter_password, reset_code):
+        if password.get() != reenter_password.get():
+            message = f"Passwords don't match"
+            fg = "red"
+        else:
+            response = self.master.user_login_protocol.reset_password(email.get(), password.get(), reset_code.get())
+            if response.result:
+                message = "Your password was reset"
+                fg = "green"
+            else:
+                message = f"Reset password failed: {response.error}"
+
+        if self.reset_result_label is not None:
+            self.reset_result_label.config(text=message, fg=fg)
+        else:
+            self.reset_result_label = tk.Label(self, text=message, fg=fg)
+            self.reset_result_label.pack()
+
+    def __init__(self, master:LoginApp):
+        super().__init__(master)
+
+        master.title("Reset Password")
+        master.geometry("500x400")
+
+        email = tk.StringVar()
+        reset_code = tk.IntVar()
+        password = tk.StringVar()
+        reenter_password = tk.StringVar()
+
+        email_label = tk.Label(self, text="Email:")
+        email_label.pack(fill='x', expand=True)
+
+        email_entry = tk.Entry(self, textvariable=email)
+        email_entry.pack(fill='x', expand=True)
+        email_entry.focus()
+
+        reset_code_label = tk.Label(self, text="Reset password code(sent to your email):")
+        reset_code_label.pack(fill='x', expand=True)
+
+        reset_code_entry = tk.Entry(self, textvariable=reset_code)
+        reset_code_entry.pack(fill='x', expand=True)
+        reset_code_entry.focus()
+
+        password_label = tk.Label(self, text="Password:")
+        password_label.pack(fill='x', expand=True)
+
+        password_entry = tk.Entry(self, textvariable=password, show="*")
+        password_entry.pack(fill='x', expand=True)
+
+        reenter_password_label = tk.Label(self, text="Reenter Password:")
+        reenter_password_label.pack(fill='x', expand=True)
+
+        reenter_password_entry = tk.Entry(self, textvariable=reenter_password, show="*")
+        reenter_password_entry.pack(fill='x', expand=True)
+
+        partial_func = functools.partial(self.reset_password_clicked, email, password, reenter_password, reset_code)
+
+        sign_up_button = tk.Button(self, text="Reset", command=partial_func)
+        sign_up_button.pack(fill='x', expand=True, pady=10)
+
+        label = tk.Label(self, text="Login", fg="blue", cursor="hand2")
+        label.pack()
+        label.bind("<Button-1>", lambda event: master.show_frame(LoginFrame))
+
+        label2 = tk.Label(self, text="Forgot Password", fg="blue", cursor="hand2")
+        label2.pack()
+        label2.bind("<Button-1>", lambda event: master.show_frame(ForgotPassword))
+
+
 class ForgotPassword(tk.Frame):
+    forgot_password_result_label = None
 
     def forgot_password_clicked(self, email):
         print(f"email:{email.get()}")
         forgot_password_response = self.master.user_login_protocol.forgot_password(email.get())
 
         if forgot_password_response.result:
-            message = "Send code Succeeded!"
+            message = "If you have an account, check your email for reset code and go to 'Reset Password' window"
             fg = "green"
         else:
-            message = f"Login Failed: {forgot_password_response.error}"
+            message = f"Failed to request password recover: {forgot_password_response.error}"
             fg = "red"
 
         if self.forgot_password_result_label is not None:
@@ -176,7 +256,7 @@ class ForgotPassword(tk.Frame):
         super().__init__(master)
 
         master.title("Forgot Password")
-        master.geometry("400x300")
+        master.geometry("500x400")
 
         email = tk.StringVar()
 
@@ -199,6 +279,10 @@ class ForgotPassword(tk.Frame):
         label2 = tk.Label(self, text="Login", fg="blue", cursor="hand2")
         label2.pack()
         label2.bind("<Button-1>", lambda event: master.show_frame(LoginFrame))
+
+        label3 = tk.Label(self, text="Reset Password", fg="blue", cursor="hand2")
+        label3.pack()
+        label3.bind("<Button-1>", lambda event: master.show_frame(ResetPassword))
 
 
 class SignUpVerificationFrame(tk.Frame):
@@ -245,7 +329,7 @@ class SignUpVerificationFrame(tk.Frame):
         super().__init__(master)
 
         master.title("Verify Sign Up")
-        master.geometry("400x300")
+        master.geometry("500x400")
 
         verification_code = tk.IntVar()
         verification_code_label = tk.Label(self, text="Please verify code sent to your email:")

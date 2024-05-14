@@ -1,5 +1,7 @@
 import random
-class VerificationCodeCreator:
+
+
+class RandomCodeCreator:
 
     @staticmethod
     def create_code():
