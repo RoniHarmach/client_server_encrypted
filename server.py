@@ -27,27 +27,27 @@ def open_server_socket():
     return srv_sock
 
 
-def send_verification_email(user, email, verification_code):
-    print(f"sent verification code '{verification_code} to {user} email {email}")
+def send_verification_email(email, verification_code):
+    print(f"sent verification code '{verification_code} to email {email}")
 
 
-def check_login(user, password):
-    user_data = database.get_user(user)
-    if user_data is not None and user_data.password == password:
+def check_login(email, password):
+    user_data = database.get_user(email)
+    if user_data is not None and user_data.password == password and user_data.status == Status.VERIFIED:
         return True
     return False
 
 
 def is_valid_verification_code(request: SignUpVerificationRequest):
-    verification = database.get_verification_code(request.user)
+    verification = database.get_verification_code(request.email)
     if verification is None:
-        print(f"missing verification code for user {request.user}")
+        print(f"missing verification code for {request.email}")
         return False, "Invalid Verification Code"
     if verification.code != request.code:
-        print(f"wrong verification code {request.code} sent by user {request.user}. Need to send code {verification.code}")
+        print(f"wrong verification code {request.code} sent by user {request.email}. Need to send code {verification.code}")
         return False, "Invalid Verification Code"
     if verification.expiration_time < datetime.datetime.now():
-        print(f"verification code expired for user {request.user}")
+        print(f"verification code expired for user {request.email}")
         return False, "Expired Verification Code"
 
     return True, None
@@ -61,25 +61,25 @@ def handle_client(sock):
             break
         code, message = Protocol.read_data(sock)
         if code == ProtocolCodes.LOGIN_REQUEST:
-            if check_login(message.user, message.password):
+            if check_login(message.email, message.password):
                 response = LoginResponse(result=True)
             else:
-                response = LoginResponse(result=False, error=("user / password is incorrect"))
+                response = LoginResponse(result=False, error=("email / password is incorrect"))
             Protocol.send_data(sock, ProtocolCodes.LOGIN_RESPONSE, response)
         elif code == ProtocolCodes.SIGN_UP_REQUEST:
-            user_data = UserData(user=message.user, password=message.password, email=message.email, status=Status.WAITING_FOR_VERIFY)
+            user_data = UserData(email=message.email, password=message.password, status=Status.WAITING_FOR_VERIFY)
             if database.create_user(user_data):
                 verification_code = VerificationCodeCreator.create_code()
                 current_datetime = datetime.datetime.now()
                 expiration_time = current_datetime + datetime.timedelta(minutes=1)
-                database.save_verification_code(message.user, VerificationCode(code=verification_code, expiration_time=expiration_time))
-                send_verification_email(user_data.user, user_data.email, verification_code)
+                database.save_verification_code(message.email, VerificationCode(code=verification_code, expiration_time=expiration_time))
+                send_verification_email(user_data.email, verification_code)
                 response = SignUpResponse(result=True)
             else:
                 response = SignUpResponse(result=False, error="User name already taken..")
             Protocol.send_data(sock, ProtocolCodes.SIGN_UP_RESPONSE, response)
         elif code == ProtocolCodes.FORGOT_PASSWORD_REQUEST:
-            if message.user == "roni":
+            if message.email == "roni":
                 response = ForgotPasswordResponse(result=True)
             else:
                 response = ForgotPasswordResponse(result=False, error="User name already taken..")
@@ -89,20 +89,20 @@ def handle_client(sock):
             if not is_valid:
                 response = SignUpVerificationResponse(result=False, error=error)
             else:
-                database.update_user_status(user=message.user, status=Status.VERIFIED)
-                database.delete_verification_code(message.user)
+                database.update_user_status(email=message.email, status=Status.VERIFIED)
+                database.delete_verification_code(message.email)
                 response = SignUpVerificationResponse(result=True)
             Protocol.send_data(sock, ProtocolCodes.VERIFY_SIGN_UP_RESPONSE, response)
         elif code == ProtocolCodes.RESEND_VERIFICATION_CODE_REQUEST:
-            user_data = database.get_user(message.user)
+            user_data = database.get_user(message.email)
             if user_data is None:
                 response = ResendVerificationCodeResponse(result=False, error="Something went wrong")
             if user_data.status == Status.VERIFIED:
                 response = ResendVerificationCodeResponse(result=False, error="User already finished the sign in process")
             else:
-                verification_code = database.get_verification_code(user_data.user)
+                verification_code = database.get_verification_code(user_data.email)
                 if verification_code.expiration_time > datetime.datetime.now():
-                    send_verification_email(verification_code=verification_code.code, user=user_data.user, email=user_data.email)
+                    send_verification_email(verification_code=verification_code.code, email=user_data.email)
                     response = ResendVerificationCodeResponse(result=True)
                 else:
                     # TODO - need to delete user and verification code from the database

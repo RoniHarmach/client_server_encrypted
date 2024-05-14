@@ -3,6 +3,6 @@ from dataclasses import dataclass
 
 @dataclass
 class SignUpVerificationRequest:
-    user: str
+    email: str
     code: int
 

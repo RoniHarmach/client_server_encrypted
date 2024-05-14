@@ -3,4 +3,4 @@ from dataclasses import dataclass
 
 @dataclass
 class ResendVerificationCodeRequest:
-    user: str
+    email: str

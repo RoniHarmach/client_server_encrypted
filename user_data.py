@@ -9,7 +9,6 @@ class Status(Enum):
 
 @dataclass
 class UserData:
-    user: str
     password: str
     email: str
     status: Status

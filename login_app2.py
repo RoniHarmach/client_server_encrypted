@@ -35,9 +35,9 @@ class LoginApp(tk.Tk):
 class LoginFrame(tk.Frame):
     login_result_label = None
 
-    def login_clicked(self, user, password):
-        print(f"email:{user.get()}, pass:{password.get()}")
-        login_response = self.master.user_login_protocol.login(user.get(), password.get())
+    def login_clicked(self, email, password):
+        print(f"email:{email.get()}, pass:{password.get()}")
+        login_response = self.master.user_login_protocol.login(email.get(), password.get())
 
         if login_response.result:
             message = "Login Succeeded!"
@@ -59,15 +59,15 @@ class LoginFrame(tk.Frame):
         master.title("Login")
         master.geometry("400x300")
 
-        user = tk.StringVar()
+        email = tk.StringVar()
         password = tk.StringVar()
 
-        user_label = tk.Label(self, text="User Name:")
-        user_label.pack(fill='x', expand=True)
+        email_label = tk.Label(self, text="Email:")
+        email_label.pack(fill='x', expand=True)
 
-        user_entry = tk.Entry(self, textvariable=user)
-        user_entry.pack(fill='x', expand=True)
-        user_entry.focus()
+        email_entry = tk.Entry(self, textvariable=email)
+        email_entry.pack(fill='x', expand=True)
+        email_entry.focus()
 
         password_label = tk.Label(self, text="Password:")
         password_label.pack(fill='x', expand=True)
@@ -75,7 +75,7 @@ class LoginFrame(tk.Frame):
         password_entry = tk.Entry(self, textvariable=password, show="*")
         password_entry.pack(fill='x', expand=True)
 
-        partial_func = functools.partial(self.login_clicked, user, password)
+        partial_func = functools.partial(self.login_clicked, email, password)
 
         login_button = tk.Button(self, text="Login", command=partial_func)
         login_button.pack(fill='x', expand=True, pady=10)
@@ -92,14 +92,14 @@ class LoginFrame(tk.Frame):
 class SignUpFrame(tk.Frame):
     sign_up_result_label = None
 
-    def sign_up_clicked(self, user, email, password, reenter_password, master: LoginApp):
+    def sign_up_clicked(self, email, password, reenter_password, master: LoginApp):
         if password.get() != reenter_password.get():
             message = f"Passwords don't match"
             fg = "red"
         else:
-            sign_up_response = self.master.user_login_protocol.sign_up(user.get(), email.get(), password.get())
+            sign_up_response = self.master.user_login_protocol.sign_up(email.get(), password.get())
             if sign_up_response.result:
-                master.show_frame(SignUpVerificationFrame, user.get())
+                master.show_frame(SignUpVerificationFrame, email.get())
                 return
             else:
                 message = f"Sign Up Failed: {sign_up_response.error}"
@@ -116,23 +116,16 @@ class SignUpFrame(tk.Frame):
         master.title("Sign Up")
         master.geometry("400x300")
 
-        user = tk.StringVar()
         email = tk.StringVar()
         password = tk.StringVar()
         reenter_password = tk.StringVar()
-
-        user_label = tk.Label(self, text="User Name:")
-        user_label.pack(fill='x', expand=True)
-
-        user_entry = tk.Entry(self, textvariable=user)
-        user_entry.pack(fill='x', expand=True)
-        user_entry.focus()
 
         email_label = tk.Label(self, text="Email:")
         email_label.pack(fill='x', expand=True)
 
         email_entry = tk.Entry(self, textvariable=email)
         email_entry.pack(fill='x', expand=True)
+        email_entry.focus()
 
         password_label = tk.Label(self, text="Password:")
         password_label.pack(fill='x', expand=True)
@@ -146,7 +139,7 @@ class SignUpFrame(tk.Frame):
         reenter_password_entry = tk.Entry(self, textvariable=reenter_password, show="*")
         reenter_password_entry.pack(fill='x', expand=True)
 
-        partial_func = functools.partial(self.sign_up_clicked, user, email, password, reenter_password, master)
+        partial_func = functools.partial(self.sign_up_clicked, email, password, reenter_password, master)
 
         sign_up_button = tk.Button(self, text="Sign Up", command=partial_func)
         sign_up_button.pack(fill='x', expand=True, pady=10)
@@ -162,9 +155,9 @@ class SignUpFrame(tk.Frame):
 
 class ForgotPassword(tk.Frame):
 
-    def forgot_password_clicked(self, user):
-        print(f"email:{user.get()}")
-        forgot_password_response = self.master.user_login_protocol.forgot_password(user.get())
+    def forgot_password_clicked(self, email):
+        print(f"email:{email.get()}")
+        forgot_password_response = self.master.user_login_protocol.forgot_password(email.get())
 
         if forgot_password_response.result:
             message = "Send code Succeeded!"
@@ -185,16 +178,16 @@ class ForgotPassword(tk.Frame):
         master.title("Forgot Password")
         master.geometry("400x300")
 
-        user = tk.StringVar()
+        email = tk.StringVar()
 
-        user_label = tk.Label(self, text="User Name For Recovery:")
-        user_label.pack(fill='x', expand=True)
+        email_label = tk.Label(self, text="Email For Recovery:")
+        email_label.pack(fill='x', expand=True)
 
-        user_entry = tk.Entry(self, textvariable=user)
-        user_entry.pack(fill='x', expand=True)
-        user_entry.focus()
+        email_entry = tk.Entry(self, textvariable=email)
+        email_entry.pack(fill='x', expand=True)
+        email_entry.focus()
 
-        partial_func = functools.partial(self.forgot_password_clicked, user)
+        partial_func = functools.partial(self.forgot_password_clicked, email)
 
         send_code_to_email_button = tk.Button(self, text="Send Code To Email", command=partial_func)
         send_code_to_email_button.pack(fill='x', expand=True, pady=10)
@@ -214,10 +207,8 @@ class SignUpVerificationFrame(tk.Frame):
     verify_button: tk.Button = None
     verification_code_entry: tk.Entry = None
 
-#                send_verification_email(user_data.user, user_data.email, verification_code)
-#  sock, ProtocolCodes.VERIFY_SIGN_UP_RESPONSE, response
-    def resend_clicked(self, user):
-        response = self.master.user_login_protocol.resend_sign_up_code(user)
+    def resend_clicked(self, email):
+        response = self.master.user_login_protocol.resend_sign_up_code(email)
         if not response.result:
             message = response.error
             fg = "red"
@@ -231,8 +222,8 @@ class SignUpVerificationFrame(tk.Frame):
             self.verification_result_label = tk.Label(self, text=message, fg=fg)
             self.verification_result_label.pack()
 
-    def verify_clicked(self, user, verification_code):
-        response = self.master.user_login_protocol.verify_sign_up(user, verification_code.get())
+    def verify_clicked(self, email, verification_code):
+        response = self.master.user_login_protocol.verify_sign_up(email, verification_code.get())
         if not response.result:
             message = response.error
             fg = "red"
@@ -250,7 +241,7 @@ class SignUpVerificationFrame(tk.Frame):
             self.verification_result_label = tk.Label(self, text=message, fg=fg)
             self.verification_result_label.pack()
 
-    def __init__(self, master:LoginApp, user):
+    def __init__(self, master:LoginApp, email):
         super().__init__(master)
 
         master.title("Verify Sign Up")
@@ -264,14 +255,13 @@ class SignUpVerificationFrame(tk.Frame):
         self.verification_code_entry.pack(fill='x', expand=True)
         self.verification_code_entry.focus()
 
-        verify_func = functools.partial(self.verify_clicked, user, verification_code)
+        verify_func = functools.partial(self.verify_clicked, email, verification_code)
         self.verify_button = tk.Button(self, text="Verify Code", command=verify_func)
         self.verify_button.pack(fill='x', expand=True, pady=10)
 
-        resend_func = functools.partial(self.resend_clicked, user)
+        resend_func = functools.partial(self.resend_clicked, email)
         self.resend_button = tk.Button(self, text="Resend Code", command=resend_func)
         self.resend_button.pack(fill='x', expand=True, pady=10)
-
 
         self.login_label = tk.Label(self, text="Login", fg="blue", cursor="hand2")
         self.login_label.bind("<Button-1>", lambda event: master.show_frame(LoginFrame))

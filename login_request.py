@@ -3,6 +3,6 @@ from dataclasses import dataclass
 
 @dataclass
 class LoginRequest:
-    user: str
+    email: str
     password: str
 
