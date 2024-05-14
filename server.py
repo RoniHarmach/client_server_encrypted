@@ -119,6 +119,7 @@ def handle_client(sock):
             is_valid, error, expired = is_valid_verification_code(message)
             if not is_valid:
                 if expired:
+                    print(f"deleting user {message.email}")
                     database.delete_verification_code(message.email)
                     database.delete_user(message.email)
                     database.save_database()
