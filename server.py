@@ -4,6 +4,7 @@ import socket
 import threading
 
 import client_server_constants
+from forgot_password_response import ForgotPasswordResponse
 from login_response import LoginResponse
 from protocol import Protocol
 from protocol_codes import ProtocolCodes
@@ -12,12 +13,14 @@ from sign_up_response import SignUpResponse
 
 all_to_die = False
 
+
 def open_server_socket():
     srv_sock = socket.socket()
     srv_sock.bind((client_server_constants.SERVER_IP, client_server_constants.PORT))
     srv_sock.listen(2)
     srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     return srv_sock
+
 
 def handle_client(sock):
     global all_to_die
@@ -41,9 +44,15 @@ def handle_client(sock):
             else:
                 response = SignUpResponse(result=False, error="User name already taken..")
             Protocol.send_data(sock, ProtocolCodes.SIGN_UP_RESPONSE, response)
+        elif code == ProtocolCodes.FORGOT_PASSWORD_REQUEST:
+            if message.user == "roni":
+                response = ForgotPasswordResponse(result=True)
+            else:
+                response = ForgotPasswordResponse(result=False, error="User name already taken..")
+            Protocol.send_data(sock, ProtocolCodes.FORGOT_PASSWORD_RESPONSE, response)
+
     sock.close()
     print("handle_client cloded")
-
 
 
 def accept_clients(srv_sock):

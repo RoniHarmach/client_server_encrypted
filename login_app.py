@@ -53,6 +53,11 @@ class LoginApp:
             self.login_result_label = tk.Label(self.login_frame, text=message, fg=fg)
             self.login_result_label.pack()
 
+        label = tk.Label(self, text="You are now in the next frame", fg="blue", cursor="hand2")
+        label.pack()
+        label.bind("<Button-1>", lambda event: master.show_frame(InitialFrame))
+
+
     def create_sign_up_screen(self):
         self.root.title("Sign-Up")
         self.root.geometry("400x250")

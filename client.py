@@ -1,12 +1,9 @@
-import threading, socket, sys, pickle
-from typing import Dict
+import socket, sys
 
 import client_server_constants
 from protocol_codes import ProtocolCodes
 from protocol import Protocol
-import tkinter as tk
-from tkinter import messagebox
-from login_app import LoginApp
+from login_app2 import LoginApp
 from user_login_protocol import UserLoginProtocol
 
 connected = False
@@ -64,7 +61,7 @@ def main(server_ip, port):
     sock.connect((server_ip, port))
 
     user_login_protocol = UserLoginProtocol(sock)
-    app = LoginApp(user_login_protocol, login_callback)
+    app = LoginApp(user_login_protocol)
     app.run()
    # app root.mainloop()
 

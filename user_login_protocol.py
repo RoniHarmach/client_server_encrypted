@@ -1,3 +1,4 @@
+from forgot_password_request import ForgotPasswordRequest
 from login_request import LoginRequest
 from login_response import LoginResponse
 from protocol import Protocol
@@ -30,7 +31,12 @@ class UserLoginProtocol:
         return message
 
     def forgot_password(self, user):
-        pass
+        message = ForgotPasswordRequest(user=user)
+        self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.FORGOT_PASSWORD_REQUEST, message=message)
+        code, message = self.client_server_protocol.read_data(sock=self.sock)
+        if code != ProtocolCodes.FORGOT_PASSWORD_RESPONSE:
+            print("TODO: We need to check why")
+        return message
 
     def reset_password(self, user, password, reset_code):
         pass
