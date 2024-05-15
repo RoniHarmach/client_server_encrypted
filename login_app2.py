@@ -1,6 +1,7 @@
 import functools
 import tkinter as tk
 
+from encryption import Encryption, EncryptionData
 from user_login_protocol import UserLoginProtocol
 # TODO:
 
@@ -22,7 +23,7 @@ class LoginApp(tk.Tk):
         self.show_frame(LoginFrame)
         self.mainloop()
 
-    def show_frame(self, frame_class, args = None):
+    def show_frame(self, frame_class, args=None):
         if self.current_frame:
             self.current_frame.destroy()
         if args is None:
@@ -94,6 +95,7 @@ class LoginFrame(tk.Frame):
         label4 = tk.Label(self, text="Verify Sign Up", fg="blue", cursor="hand2")
         label4.pack()
         label4.bind("<Button-1>", lambda event: master.show_frame(SignUpVerificationFrame, ""))
+
 
 class SignUpFrame(tk.Frame):
     sign_up_result_label = None
@@ -324,6 +326,8 @@ class SignUpVerificationFrame(tk.Frame):
             self.verification_result_label = tk.Label(self, text=message, fg=fg)
             self.verification_result_label.pack()
 
+
+
     def __init__(self, master:LoginApp, email):
         super().__init__(master)
 
@@ -357,6 +361,14 @@ class SignUpVerificationFrame(tk.Frame):
         self.resend_button.pack(fill='x', expand=True, pady=10)
 
         self.login_label = tk.Label(self, text="Login", fg="blue", cursor="hand2")
+        self.login_label.pack()
         self.login_label.bind("<Button-1>", lambda event: master.show_frame(LoginFrame))
 
+        label = tk.Label(self, text="Sign Up", fg="blue", cursor="hand2")
+        label.pack()
+        label.bind("<Button-1>", lambda event: master.show_frame(SignUpFrame))
+
+
+
+# אם לוחצצים על הרשמות אחרי שפעם אחת לא הצלחת זה תוקע את המסך
 
