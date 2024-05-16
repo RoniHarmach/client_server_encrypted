@@ -2,7 +2,6 @@ import json
 import threading
 from dataclasses import dataclass
 from typing import Dict
-
 from user_data import UserData
 from verification_code import VerificationCode
 
@@ -12,7 +11,7 @@ class Database:
 
     users: Dict[str, UserData]
     verification_codes = Dict[str, VerificationCode]
-    reset_password_codes =  Dict[str, VerificationCode]
+    reset_password_codes = Dict[str, VerificationCode]
     database_file_name = "db/database.json"
 
     def __init__(self, users, verification_codes, reset_password_codes):
@@ -98,4 +97,4 @@ class Database:
 
     def update_password(self, email, password):
         user_data = self.get_user(email)
-        user_data.password= password
+        user_data.password = password

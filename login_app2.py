@@ -1,7 +1,6 @@
 import functools
 import tkinter as tk
 
-from encryption import Encryption, EncryptionData
 from user_login_protocol import UserLoginProtocol
 # TODO:
 

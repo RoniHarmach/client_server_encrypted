@@ -1,13 +1,16 @@
+import pickle
 import socket, sys
+from random import random
 
 import client_server_constants
+from encryption import Encryption
 from protocol_codes import ProtocolCodes
 from protocol import Protocol
 from login_app2 import LoginApp
 from user_login_protocol import UserLoginProtocol
+import random
 
 connected = False
-
 
 def handle_server_messages(server_socket):
     global connected
@@ -25,14 +28,6 @@ def handle_server_messages(server_socket):
             connected = False
 
 
-# def print_on_screen(self, message):
-#     print(message)
-#
-# def connect_to_server(self):
-#     # Implement connection to server
-#     pass
-#
-#
 def open_client_socket(ip):
     global connected
     sock = socket.socket()
@@ -45,9 +40,6 @@ def open_client_socket(ip):
     except:
         print(f'Error while trying to connect.  Check ip or port -- {ip}:{port}')
         return None
-#
-#
-# def handle_client_messages(server_socket):
 
 
 def login_callback():

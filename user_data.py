@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from encryption import Encryption, EncryptionData
-
 
 class Status(Enum):
     WAITING_FOR_VERIFY = 1
@@ -14,10 +12,14 @@ class UserData:
     email: str
     password: str
     status: Status
-    salt: EncryptionData.salt
+    salt: str
 
     def __json__(self):
         return {"email": self.email, "password": self.password, "salt": self.salt,  "status": self.status.name}
+
+    def __hash__(self):
+        # Hash based on the email and password attributes
+        return hash(self.email)
 
     @classmethod
     def from_json(cls, json):

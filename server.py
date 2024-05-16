@@ -1,9 +1,11 @@
+import pickle
 import socket
 import threading
 import datetime
 import client_server_constants
 from database import Database
-from encryption import Encryption, EncryptionData
+from encrypted_aes_message import EncryptedAESMessage
+from encryption import Encryption
 from forgot_password_response import ForgotPasswordResponse
 from login_response import LoginResponse
 from protocol import Protocol
@@ -11,6 +13,7 @@ from protocol_codes import ProtocolCodes
 from resend_verification_code_response import ResendVerificationCodeResponse
 from reset_password_request import ResetPasswordRequest
 from reset_password_response import ResetPasswordResponse
+from send_key_response import SendKeyResponse
 from sign_up_response import SignUpResponse
 from sign_up_verification_request import SignUpVerificationRequest
 from sign_up_verification_response import SignUpVerificationResponse
@@ -40,9 +43,13 @@ def send_reset_password_email(email, reset_code):
 
 def check_login(email, password):
     user_data = database.get_user(email)
-    if user_data is not None and user_data.password == password and user_data.status == Status.VERIFIED:
-        return True
-    return False
+
+    if user_data is None or user_data.status != Status.VERIFIED:
+        return False
+
+    salt = user_data.salt
+    hashed_password = Encryption.hash_password(password=password, salt=salt, pepper=pepper)
+    return user_data.password == hashed_password
 
 
 def is_valid_verification_code(request: SignUpVerificationRequest):
@@ -90,29 +97,38 @@ def is_user_expired(email):
     # return true if user exist AND user status != VERIFIED and it has expired verification code # delte_user, notifications
     return False
 
+def wrap_with_encryption(key, message):
+    iv, encrypted_message = Encryption.aes_encrypt(key, message)
+    return EncryptedAESMessage(iv=iv, encrypted_message=encrypted_message)
+
 def handle_client(sock):
     global all_to_die
     finish = False
+    key = None
+
     while not finish:
         if all_to_die:
             print("will close due to main server issue")
             break
-        code, message = Protocol.read_data(sock)
+        code, request = Protocol.read_data(sock)
+        if isinstance(request, EncryptedAESMessage):
+            message = Encryption.aes_decrypt(key, request.iv, request.encrypted_message)
+        else:
+            message = request
+
         if code == ProtocolCodes.LOGIN_REQUEST:
-            encrypt_password = Encryption.hash_password(password=message.password, salt=EncryptionData.salt, pepper=pepper)
-            message.password = encrypt_password
             if check_login(message.email, message.password):
                 response = LoginResponse(result=True)
             else:
                 response = LoginResponse(result=False, error=("email / password is incorrect"))
-            Protocol.send_data(sock, ProtocolCodes.LOGIN_RESPONSE, response)
+            Protocol.send_data(sock, ProtocolCodes.LOGIN_RESPONSE, wrap_with_encryption(key, response))
         elif code == ProtocolCodes.SIGN_UP_REQUEST:
             ### TODO if trying to sign up existing email and user is not verified and verification code is expired:
             ### 1. delete existing user and expired verification code
             ### 2. allow sign up
-            encrypt_password = Encryption.hash_password(password=message.password, salt=EncryptionData.salt, pepper=pepper)
-            message.password = encrypt_password
-            user_data = UserData(email=message.email, password=message.password, status=Status.WAITING_FOR_VERIFY, salt=EncryptionData.salt)
+            salt = Encryption.generate_salt()
+            hashed_password = Encryption.hash_password(password=message.password, salt=salt, pepper=pepper)
+            user_data = UserData(email=message.email, password=hashed_password, status=Status.WAITING_FOR_VERIFY, salt=salt)
             if database.create_user(user_data):
                 verification_code = RandomCodeCreator.create_code()
                 expiration_time = get_future_datetime(1)
@@ -125,7 +141,8 @@ def handle_client(sock):
                     response = SignUpResponse(result=True)
                 else:
                     response = SignUpResponse(result=False, error="User name already taken..")
-            Protocol.send_data(sock, ProtocolCodes.SIGN_UP_RESPONSE, response)
+
+            Protocol.send_data(sock, ProtocolCodes.SIGN_UP_RESPONSE, wrap_with_encryption(key, response))
         elif code == ProtocolCodes.FORGOT_PASSWORD_REQUEST:
             user_data = database.get_user(message.email)
             if user_data is not None and user_data.status == Status.VERIFIED:
@@ -136,7 +153,7 @@ def handle_client(sock):
                 send_reset_password_email(user_data.email, reset_password_code)
             # Always return success because we don't want to tell if the email exist in the database
             response = ForgotPasswordResponse(result=True)
-            Protocol.send_data(sock, ProtocolCodes.FORGOT_PASSWORD_RESPONSE, response)
+            Protocol.send_data(sock, ProtocolCodes.FORGOT_PASSWORD_RESPONSE, wrap_with_encryption(key, response))
         elif code == ProtocolCodes.VERIFY_SIGN_UP_REQUEST:
             is_valid, error, expired = is_valid_verification_code(message)
             if not is_valid:
@@ -151,7 +168,8 @@ def handle_client(sock):
                 database.delete_verification_code(message.email)
                 database.save_database()
                 response = SignUpVerificationResponse(result=True)
-            Protocol.send_data(sock, ProtocolCodes.VERIFY_SIGN_UP_RESPONSE, response)
+
+            Protocol.send_data(sock, ProtocolCodes.VERIFY_SIGN_UP_RESPONSE, wrap_with_encryption(key, response))
         elif code == ProtocolCodes.RESEND_VERIFICATION_CODE_REQUEST:
             user_data = database.get_user(message.email)
             if user_data is None:
@@ -168,20 +186,24 @@ def handle_client(sock):
                     database.delete_verification_code(user_data.email)
                     database.delete_user(user_data.email)
                     response = ResendVerificationCodeResponse(result=False, error="Verification code expired. Please Sign Up again")
-            Protocol.send_data(sock, ProtocolCodes.RESEND_VERIFICATION_CODE_RESPONSE, response)
+            Protocol.send_data(sock, ProtocolCodes.RESEND_VERIFICATION_CODE_RESPONSE, wrap_with_encryption(key, response))
         elif code == ProtocolCodes.RESET_PASSWORD_REQUEST:
             is_valid, error = is_valid_reset_code(message)
             if not is_valid:
                 response = ResetPasswordResponse(result=False, error=error)
             else:
-                encrypt_password = Encryption.hash_password(password=message.password, salt=EncryptionData.salt,
-                                                            pepper=pepper)
-                message.password = encrypt_password
-                database.update_password(message.email, message.password)
+                user_data = database.get_user(message.email)
+                hashed_password = Encryption.hash_password(password=message.password, salt=user_data.salt,pepper=pepper)
+                database.update_password(message.email, hashed_password)
                 database.delete_reset_code(message.email)
                 database.save_database()
                 response = ResetPasswordResponse(result=True)
-            Protocol.send_data(sock, ProtocolCodes.RESET_PASSWORD_RESPONSE, response)
+            Protocol.send_data(sock, ProtocolCodes.RESET_PASSWORD_RESPONSE, wrap_with_encryption(key, response))
+        elif code == ProtocolCodes.SEND_SHARED_KEY_REQUEST:
+            key = message.key
+            response = SendKeyResponse(result=True)
+            Protocol.send_data(sock, ProtocolCodes.SEND_SHARED_KEY_RESPONSE, response)
+
 
     sock.close()
     print("handle_client cloded")
