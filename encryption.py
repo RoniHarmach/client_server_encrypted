@@ -2,9 +2,9 @@ import hashlib
 import pickle
 import secrets
 import string
-from dataclasses import dataclass
 import random
-from Crypto.Cipher import AES
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
 from Crypto.Util.Padding import pad, unpad
 from Cryptodome.Cipher import AES
 
@@ -36,6 +36,19 @@ class Encryption:
         salt = ''.join(secrets.choice(salt_characters) for _ in range(length))
         return salt
 
+    @staticmethod
+    def generate_rsa_keys():
+        key = RSA.generate(2048)
+        private_key = key.export_key()
+        public_key = key.publickey().export_key()
+        return private_key, public_key
+
+    @staticmethod
+    def encrypt_rsa_message(public_rsa_key, message):
+        public_key = RSA.import_key(public_rsa_key)
+        cipher = PKCS1_OAEP.new(public_key)
+        return cipher.encrypt(message)
+
     def hash_password(password, salt, pepper):
         password_bytes = password.encode('utf-8')
         salt_bytes = salt.encode('utf-8')
@@ -43,5 +56,6 @@ class Encryption:
         hashed_password = hashlib.sha256(password_bytes + salt_bytes + pepper_bytes).hexdigest()
 
         return hashed_password
+
 
 

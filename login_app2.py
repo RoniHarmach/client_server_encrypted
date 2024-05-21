@@ -1,5 +1,6 @@
 import functools
 import tkinter as tk
+from tkinter import ttk
 
 from user_login_protocol import UserLoginProtocol
 # TODO:
@@ -8,7 +9,11 @@ from user_login_protocol import UserLoginProtocol
 # when doing login/signup then check if user in dictionary and if password matches
 # add new key and UserData to dictionary if user doesn't exist
 
+RSA = "RSA"
+DP_HELLMAN = "DPL"
+DP_HELLMAN_LABEL = "DP-HELLMAN"
 
+secured_socket = False
 class LoginApp(tk.Tk):
 
     user_login_protocol: UserLoginProtocol = None
@@ -19,7 +24,7 @@ class LoginApp(tk.Tk):
         self.current_frame = None
 
     def run(self):
-        self.show_frame(LoginFrame)
+        self.show_frame(SecureConnectionFrame)
         self.mainloop()
 
     def show_frame(self, frame_class, args=None):
@@ -31,12 +36,103 @@ class LoginApp(tk.Tk):
             self.current_frame = frame_class(self, args)
         self.current_frame.pack()
 
+    @staticmethod
+    def add_encryption_option_to_frame(frame):
+        encryption_frame = tk.Frame(frame)
+
+        encryption_label = tk.Label(encryption_frame, text="Choose an encryption type:")
+        encryption_label.pack(fill='x', expand=True)
+
+        encryption_type = tk.StringVar(value=RSA)
+        rsa = tk.Radiobutton(encryption_frame, text=RSA, variable=encryption_type, value=RSA)
+        rsa.pack(side=tk.LEFT)
+
+        dph = tk.Radiobutton(encryption_frame, text=DP_HELLMAN_LABEL, variable=encryption_type, value=DP_HELLMAN)
+        dph.pack(side=tk.LEFT, padx=10)
+
+        encryption_frame.pack(fill='x')
+
+
+
+
+
+        return encryption_type
+        # Create a StringVar object to store the selected option
+        # selected_option = tk.StringVar()
+        # selected_option.set("Option 1")  # Set default value
+        #
+        # # Create the RadioButton widgets and pack them in the frame
+        # radio_button1 = tk.Radiobutton(frame, text="Option 1", variable=selected_option, value="Option 1")
+        # radio_button1.pack(side=tk.LEFT, padx=5)
+        #
+        # radio_button2 = tk.Radiobutton(frame, text="Option 2", variable=selected_option, value="Option 2")
+        # radio_button2.pack(side=tk.LEFT, padx=5, fill="x", expand=True)
+        # return selected_option
+
+
+class SecureConnectionFrame(tk.Frame):
+    result_label = None
+
+    def open_secure_socket(self, encryption_type):
+        global secured_socket
+        if not secured_socket:
+            if not encryption_type:
+                return False, "Missing encryption type"
+            elif not self.master.user_login_protocol.is_secure_socket():
+                result, error = self.master.user_login_protocol.open_secure_socket(encryption_type)
+                if result:
+                    secured_socket = True
+                    return True, None
+                else:
+                    return False, error
+        return False, "Failed to open secure socket - Unknown Error"
+
+    def connect_clicked(self, encryption_type, master: LoginApp):
+        global secured_socket
+
+        result, error = self.open_secure_socket(encryption_type.get())
+        if not result:
+            message = error
+            fg = "red"
+        else:
+            master.show_frame(LoginFrame)
+            return
+
+        if self.result_label is not None:
+            self.result_label.config(text=message, fg=fg)
+        else:
+            self.result_label = tk.Label(self, text=message, fg=fg)
+            self.result_label.pack()
+
+    def __init__(self, master:LoginApp):
+        super().__init__(master)
+        master.title("Open Secured Connection")
+        master.geometry("500x400")
+
+        encryption_frame = tk.Frame(self)
+
+        encryption_label = tk.Label(encryption_frame, text="Choose an encryption type:")
+        encryption_label.pack(fill='x', expand=True)
+
+        encryption_type = tk.StringVar(value=RSA)
+        rsa = tk.Radiobutton(encryption_frame, text=RSA, variable=encryption_type, value=RSA)
+        rsa.pack(side=tk.LEFT)
+
+        dph = tk.Radiobutton(encryption_frame, text=DP_HELLMAN_LABEL, variable=encryption_type, value=DP_HELLMAN)
+        dph.pack(side=tk.LEFT, padx=10)
+
+        encryption_frame.pack(fill='x')
+        partial_func = functools.partial(self.connect_clicked, encryption_type, master)
+
+        connect_button = tk.Button(self, text="Open Secured Connection", command=partial_func)
+        connect_button.pack(fill='x', expand=True, pady=10)
+
 
 class LoginFrame(tk.Frame):
     login_result_label = None
 
     def login_clicked(self, email, password):
-        print(f"email:{email.get()}, pass:{password.get()}")
+
         login_response = self.master.user_login_protocol.login(email.get(), password.get())
 
         if login_response.result:
@@ -51,6 +147,7 @@ class LoginFrame(tk.Frame):
         else:
             self.login_result_label = tk.Label(self, text=message, fg=fg)
             self.login_result_label.pack()
+
 
 
     def __init__(self, master:LoginApp):
@@ -79,8 +176,11 @@ class LoginFrame(tk.Frame):
         login_button = tk.Button(self, text="Login", command=partial_func)
         login_button.pack(fill='x', expand=True, pady=10)
 
+
+
+
         label = tk.Label(self, text="Sign Up", fg="blue", cursor="hand2")
-        label.pack()
+        label.pack(fill="x", expand=True)
         label.bind("<Button-1>", lambda event: master.show_frame(SignUpFrame))
 
         label2 = tk.Label(self, text="Forgot Password", fg="blue", cursor="hand2")
@@ -291,7 +391,7 @@ class SignUpVerificationFrame(tk.Frame):
     verify_button: tk.Button = None
     verification_code_entry: tk.Entry = None
 
-    def resend_clicked(self, email=""):
+    def resend_clicked(self, email):
         response = self.master.user_login_protocol.resend_sign_up_code(email.get())
         if not response.result:
             message = response.error
@@ -366,6 +466,7 @@ class SignUpVerificationFrame(tk.Frame):
         label = tk.Label(self, text="Sign Up", fg="blue", cursor="hand2")
         label.pack()
         label.bind("<Button-1>", lambda event: master.show_frame(SignUpFrame))
+
 
 
 
