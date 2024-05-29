@@ -1,4 +1,5 @@
 from Crypto.Cipher import AES
+from Crypto.Protocol import DH
 from Crypto.Random import get_random_bytes
 import tkinter as tk
 import socket

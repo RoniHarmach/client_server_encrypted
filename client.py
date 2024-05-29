@@ -1,14 +1,10 @@
-import pickle
 import socket, sys
-from random import random
 
 import client_server_constants
-from encryption import Encryption
 from protocol_codes import ProtocolCodes
 from protocol import Protocol
 from login_app2 import LoginApp
 from user_login_protocol import UserLoginProtocol
-import random
 
 connected = False
 

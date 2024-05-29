@@ -1,4 +1,5 @@
 import socket
+import sys
 import threading
 import datetime
 
@@ -9,6 +10,7 @@ from rsa import DecryptionError
 
 import client_server_constants
 from database import Database
+from email_sender import EmailSender
 from encrypted_aes_message import EncryptedAESMessage
 from encryption import Encryption
 from encryption_support_check_response import EncryptionSupportCheckResponse
@@ -45,12 +47,12 @@ def open_server_socket():
     return srv_sock
 
 
-def send_verification_email(email, verification_code):
-    print(f"sent verification code '{verification_code} to email {email}")
+def send_verification_email(email, code):
+    email_sender.send_email(email, "Sign up verification code", f"Your recovery code for reset password is {code}")
 
 
 def send_reset_password_email(email, reset_code):
-    print(f"sent reset code '{reset_code} to email {email}")
+    email_sender.send_email(email, "Reset password code", f"Your recovery code for reset password is {reset_code}")
 
 
 def check_login(email, password):
@@ -266,7 +268,9 @@ def handle_client(sock):
             response, response_code, encrypt_response = handle_check_encryption_support_request(message)
         elif code == ProtocolCodes.GET_RSA_PUBLIC_KEY_REQUEST:
             response, response_code, encrypt_response = handle_public_key_request()
-        # TODO handle unknown code(add UNSUPPORTED_CODE_RESPONSE)
+        # elif code == ProtocolCodes.GET_DIFFIE_HELLMAN_REQUEST:
+            # TODO handle unknown code(add UNSUPPORTED_CODE_RESPONSE)
+
         response_message = wrap_with_encryption(client_aes_key, response) if encrypt_response else response
 
         Protocol.send_data(sock, response_code, response_message)
@@ -311,12 +315,18 @@ def create_rsa_keys():
     cipher = PKCS1_OAEP.new(private_key)
 
 
-def main():
+def create_email_sender(email, password):
+    global email_sender
+    email_sender = EmailSender(email, password)
+
+
+def main(email, password):
     global all_to_die
     create_rsa_keys()
+    create_email_sender(email, password)
     srv_sock = open_server_socket()
     accept_clients(srv_sock)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1], sys.argv[2])
