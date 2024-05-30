@@ -7,6 +7,8 @@ from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Util.Padding import pad, unpad
 from Cryptodome.Cipher import AES
+from pyDH import DiffieHellman
+from hashlib import sha256
 
 
 class Encryption:
@@ -49,6 +51,29 @@ class Encryption:
         cipher = PKCS1_OAEP.new(public_key)
         return cipher.encrypt(message)
 
+    @staticmethod
+    def generate_dh_keys():
+        dh = DiffieHellman()
+
+        private_key = dh.get_private_key()
+        public_key = dh.gen_public_key()
+        return private_key, public_key, dh
+
+    @staticmethod
+    def create_symmetric_key(key):
+        return sha256(key.encode()).digest()
+
+    @staticmethod
+    def ds_aes_encrypt(dh_shared_key, data):
+        symetric_key = Encryption.create_symmetric_key(dh_shared_key)
+        return Encryption.aes_encrypt(symetric_key, data)
+
+    @staticmethod
+    def ds_aes_decrypt(dh_shared_key, iv, data):
+        symmetric_key = Encryption.create_symmetric_key(dh_shared_key)
+        return Encryption.aes_decrypt(symmetric_key, iv, data)
+
+    @staticmethod
     def hash_password(password, salt, pepper):
         password_bytes = password.encode('utf-8')
         salt_bytes = salt.encode('utf-8')
@@ -56,6 +81,3 @@ class Encryption:
         hashed_password = hashlib.sha256(password_bytes + salt_bytes + pepper_bytes).hexdigest()
 
         return hashed_password
-
-
-

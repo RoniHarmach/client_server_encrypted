@@ -10,8 +10,8 @@ from user_login_protocol import UserLoginProtocol
 # add new key and UserData to dictionary if user doesn't exist
 
 RSA = "RSA"
-DP_HELLMAN = "DPL"
-DP_HELLMAN_LABEL = "DP-HELLMAN"
+DP_HELLMAN = "DH"
+DP_HELLMAN_LABEL = "DIFFIE-HELLMAN"
 
 secured_socket = False
 class LoginApp(tk.Tk):

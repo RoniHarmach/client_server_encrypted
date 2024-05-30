@@ -3,6 +3,6 @@ from typing import Optional
 
 
 @dataclass
-class SendKeyResponse:
+class AesKeyExchangeResponse:
     result: bool = False
     error: Optional[str] = None

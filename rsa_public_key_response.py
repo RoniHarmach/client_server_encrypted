@@ -2,6 +2,6 @@ from dataclasses import dataclass
 
 
 @dataclass
-class GetRsaPublicKeyResponse:
+class RsaPublicKeyResponse:
     rsa_public_key: bytes
 

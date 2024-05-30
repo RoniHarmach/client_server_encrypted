@@ -10,27 +10,27 @@ from rsa import DecryptionError
 
 import client_server_constants
 from database import Database
+from dh_pub_key_response import DhPubKeyResponse
 from email_sender import EmailSender
 from encrypted_aes_message import EncryptedAESMessage
 from encryption import Encryption
 from encryption_support_check_response import EncryptionSupportCheckResponse
 from encryption_type import EncryptionType
 from forgot_password_response import ForgotPasswordResponse
-from get_rsa_public_key_response import GetRsaPublicKeyResponse
+from rsa_public_key_response import RsaPublicKeyResponse
 from login_response import LoginResponse
 from protocol import Protocol
 from protocol_codes import ProtocolCodes
 from resend_verification_code_response import ResendVerificationCodeResponse
 from reset_password_request import ResetPasswordRequest
 from reset_password_response import ResetPasswordResponse
-from send_key_response import SendKeyResponse
+from aes_key_exchange_response import AesKeyExchangeResponse
 from sign_up_response import SignUpResponse
 from sign_up_verification_request import SignUpVerificationRequest
 from sign_up_verification_response import SignUpVerificationResponse
 from user_data import UserData, Status
 from verification_code import VerificationCode
 from random_code_creator import RandomCodeCreator
-
 all_to_die = False
 database = Database.load_database()
 pepper = 'SKJNOmx'
@@ -216,21 +216,41 @@ def handle_check_encryption_support_request(message):
     return response, ProtocolCodes.CHECK_ENCRYPTION_SUPPORT_RESPONSE, False
 
 
-def handle_public_key_request():
+def handle_rsa_public_key_request():
     global public_rsa_key
-    response = GetRsaPublicKeyResponse(rsa_public_key=public_rsa_key)
-    return response, ProtocolCodes.GET_RSA_PUBLIC_KEY_RESPONSE, False
+    response = RsaPublicKeyResponse(rsa_public_key=public_rsa_key)
+    return response, ProtocolCodes.RSA_PUBLIC_KEY_RESPONSE, False
 
 
-def handle_shared_key_request(message):
+def handle_rsa_aes_key_exchange_request(message):
     key: None
     try:
         encrypted_key_with_rsa = message.key
         key = cipher.decrypt(encrypted_key_with_rsa)
-        response = SendKeyResponse(result=True)
+        response = AesKeyExchangeResponse(result=True)
     except (ValueError, DecryptionError) as e:
-        response = SendKeyResponse(result=False, error="Failed to decrypt message")
-    return key, response, ProtocolCodes.SEND_SHARED_KEY_RESPONSE, False
+        response = AesKeyExchangeResponse(result=False, error="Failed to decrypt message")
+    return key, response, ProtocolCodes.AES_KEY_EXCHANGE_RESPONSE, False
+
+
+def handle_dh_public_key_request(message):
+    server_private_key, server_public_key, dh = Encryption.generate_dh_keys()
+    shared_key = dh.gen_shared_key(message.client_public_key)
+    response = DhPubKeyResponse(server_public_key=server_public_key, result=True)
+    return dh, shared_key, response, ProtocolCodes.DH_CLIENT_PUB_KEY_RESPONSE, False
+
+
+def handle_dh_aes_key_exchange_request(message, dh_shared_key):
+    decrypted_aes_key: None
+    try:
+        encrypted_key_with_dh = message.key
+        iv = message.iv
+
+        decrypted_aes_key = Encryption.ds_aes_decrypt(dh_shared_key=dh_shared_key, iv=iv, data=encrypted_key_with_dh)
+        response = AesKeyExchangeResponse(result=True)
+    except (ValueError, DecryptionError) as e:
+        response = AesKeyExchangeResponse(result=False, error="Failed to decrypt message")
+    return decrypted_aes_key, response, ProtocolCodes.AES_KEY_EXCHANGE_RESPONSE, False
 
 
 def handle_client(sock):
@@ -239,6 +259,8 @@ def handle_client(sock):
     client_aes_key = None
     encrypt_response = False
     response_code = None
+    dh: None
+    dh_shared_key: None
 
     while not finish:
         if all_to_die:
@@ -262,13 +284,16 @@ def handle_client(sock):
             response, response_code, encrypt_response = handle_resend_verification_code(message)
         elif code == ProtocolCodes.RESET_PASSWORD_REQUEST:
             response, response_code, encrypt_response = handle_reset_password_request(message)
-        elif code == ProtocolCodes.SEND_SHARED_KEY_REQUEST:
-            client_aes_key, response, response_code, encrypt_response = handle_shared_key_request(message)
+        elif code == ProtocolCodes.RSA_AES_KEY_EXCHANGE_REQUEST:
+            client_aes_key, response, response_code, encrypt_response = handle_rsa_aes_key_exchange_request(message)
         elif code == ProtocolCodes.CHECK_ENCRYPTION_SUPPORT_REQUEST:
             response, response_code, encrypt_response = handle_check_encryption_support_request(message)
-        elif code == ProtocolCodes.GET_RSA_PUBLIC_KEY_REQUEST:
-            response, response_code, encrypt_response = handle_public_key_request()
-        # elif code == ProtocolCodes.GET_DIFFIE_HELLMAN_REQUEST:
+        elif code == ProtocolCodes.RSA_PUBLIC_KEY_REQUEST:
+            response, response_code, encrypt_response = handle_rsa_public_key_request()
+        elif code == ProtocolCodes.DH_CLIENT_PUB_KEY_REQUEST:
+            dh, dh_shared_key, response, response_code, encrypt_response = handle_dh_public_key_request(message)
+        elif code == ProtocolCodes.DH_AES_KEY_EXCHANGE_REQUEST:
+            client_aes_key, response, response_code, encrypt_response = handle_dh_aes_key_exchange_request(message, dh_shared_key)
             # TODO handle unknown code(add UNSUPPORTED_CODE_RESPONSE)
 
         response_message = wrap_with_encryption(client_aes_key, response) if encrypt_response else response

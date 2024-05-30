@@ -2,5 +2,5 @@ from dataclasses import dataclass
 
 
 @dataclass
-class SendKeyRequest:
+class RsaAesKeyExchangeRequest:
     key: bytes

@@ -12,7 +12,7 @@ class Database:
     users: Dict[str, UserData]
     verification_codes = Dict[str, VerificationCode]
     reset_password_codes = Dict[str, VerificationCode]
-    database_file_name = "db/database.json"
+    database_file_name = "./db/database.json"
 
     def __init__(self, users, verification_codes, reset_password_codes):
         self.lock = threading.Lock()

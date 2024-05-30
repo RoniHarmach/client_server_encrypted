@@ -1,7 +1,7 @@
-from Crypto.Cipher import PKCS1_OAEP
-from Crypto.PublicKey import RSA
 from rsa import DecryptionError
 
+from dh_aes_key_exchange_request import DhAesKeyExchangeRequest
+from dh_pub_key_request import DhPubKeyRequest
 from encryption_support_check_request import EncryptionSupportCheckRequest
 from select_encryption_type_request import SelectEncryptionTypeRequest
 from encrypted_aes_message import EncryptedAESMessage
@@ -13,8 +13,8 @@ from protocol import Protocol
 from protocol_codes import ProtocolCodes
 from resend_verification_code_request import ResendVerificationCodeRequest
 from reset_password_request import ResetPasswordRequest
-from send_key_request import SendKeyRequest
-from send_key_response import SendKeyResponse
+from rsa_aes_key_exchange_request import RsaAesKeyExchangeRequest
+from aes_key_exchange_response import AesKeyExchangeResponse
 from sign_up_request import SignUpRequest
 from sign_up_verification_request import SignUpVerificationRequest
 
@@ -36,7 +36,7 @@ class UserLoginProtocol:
         if self.check_type(EncryptionType.RSA, encryption_type):
             return self.secure_with_rsa()
         elif self.check_type(EncryptionType.DIFFIE_HELLMAN, encryption_type):
-            return self.secure_with_dfh()
+            return self.secure_with_dh()
         else:
             return False, f"Unsupported encryption type {encryption_type}"
 
@@ -65,14 +65,14 @@ class UserLoginProtocol:
     def send_key_with_rsa(self, public_rsa_key, aes_key):
         try:
             encrypted_key = Encryption.encrypt_rsa_message(public_rsa_key, aes_key)
-            message = SendKeyRequest(encrypted_key)
-            self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.SEND_SHARED_KEY_REQUEST, message=message)
+            message = RsaAesKeyExchangeRequest(encrypted_key)
+            self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.RSA_AES_KEY_EXCHANGE_REQUEST, message=message)
             code, message = self.client_server_protocol.read_data(self.sock)
-            if code != ProtocolCodes.SEND_SHARED_KEY_RESPONSE:
+            if code != ProtocolCodes.AES_KEY_EXCHANGE_RESPONSE:
                 print("TODO: We need to check why")
             response = message
         except (ValueError, DecryptionError) as e:
-            response = SendKeyResponse(result=False ,error=f"RSA exception: {e}")
+            response = AesKeyExchangeResponse(result=False, error=f"RSA exception: {e}")
         return response
 
     def encrypted_message(self, message):
@@ -88,9 +88,9 @@ class UserLoginProtocol:
         return response.encryption_supported, response.error
 
     def get_server_public_rsa_key(self):
-        self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.GET_RSA_PUBLIC_KEY_REQUEST, message=b'')
+        self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.RSA_PUBLIC_KEY_REQUEST, message=b'')
         code, response = self.client_server_protocol.read_data(sock=self.sock)
-        if code != ProtocolCodes.GET_RSA_PUBLIC_KEY_RESPONSE:
+        if code != ProtocolCodes.RSA_PUBLIC_KEY_RESPONSE:
             print("TODO: We need to check why")
         return response.rsa_public_key
 
@@ -112,8 +112,42 @@ class UserLoginProtocol:
             self.is_secured_socket = True
         return response.result, response.error
 
-    def secure_with_dfh(self):
-        return False, "Not Implemented"
+    def send_client_dh_public_key(self, client_public_key):
+        message = DhPubKeyRequest(client_public_key=client_public_key)
+        self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.DH_CLIENT_PUB_KEY_REQUEST,
+                                              message=message)
+        code, response = self.client_server_protocol.read_data(sock=self.sock)
+        if code != ProtocolCodes.DH_CLIENT_PUB_KEY_RESPONSE:
+            print("TODO: We need to check why")
+        return response
+
+    def dh_exchange_aes_key(self, iv, encrypted_aes_key):
+        message = DhAesKeyExchangeRequest(key=encrypted_aes_key, iv=iv)
+        self.client_server_protocol.send_data(sock=self.sock, code=ProtocolCodes.DH_AES_KEY_EXCHANGE_REQUEST, message=message)
+        code, response = self.client_server_protocol.read_data(sock=self.sock)
+        if code != ProtocolCodes.AES_KEY_EXCHANGE_RESPONSE:
+            print("TODO: We need to check why")
+        return response
+
+    def secure_with_dh(self):
+        encryption_supported, error = self.check_if_protocol_supported(EncryptionType.DIFFIE_HELLMAN)
+        if not encryption_supported:
+            return False, error
+        private_key, public_key, dh = Encryption.generate_dh_keys()
+        response = self.send_client_dh_public_key(public_key)
+        if not response.result:
+            return response.result, response.errpr
+
+        server_public_key = response.server_public_key
+        shared_dh_key = dh.gen_shared_key(server_public_key)
+        aes_key = Encryption.generate_key()
+        iv, encrypted_aes_key = Encryption.ds_aes_encrypt(shared_dh_key, aes_key)
+        response = self.dh_exchange_aes_key(iv, encrypted_aes_key)
+
+        if response.result:
+            self.key = aes_key
+            self.is_secured_socket = True
+        return response.result, response.error
 
     def decrypt_message(self, message):
         decrypted_message = Encryption.aes_decrypt(key=self.key, iv=message.iv, data=message.encrypted_message)
@@ -191,3 +225,4 @@ class UserLoginProtocol:
         if code != ProtocolCodes.RESET_PASSWORD_RESPONSE:
             print("TODO: We need to check why")
         return decrypted_response
+
